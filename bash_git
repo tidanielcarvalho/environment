@@ -1,0 +1,70 @@
+function parse_git_branch {
+    git rev-parse --git-dir > /dev/null 2>&1
+
+    if [ $? -eq 0 ]; then
+        git_status="$(git status 2> /dev/null)"
+        up_to_date="Your branch is up to date "
+        branch_pattern="^On branch ([^${IFS}]*)"
+        detached_branch_pattern="Not currently on any branch"
+        remote_pattern="Your branch is (.*)"
+        diverge_pattern="Your branch and (.*) have diverged"
+        untracked_pattern="Untracked files:"
+        new_pattern="new file:"
+        modified_pattern="modified:"
+        not_staged_pattern="Changes not staged for commit"
+        to_be_commited_pattern="Changes to be committed"
+        renamed_pattern="renamed:"
+
+         #branch up to date
+        if [[ ${git_status} =~ ${up_to_date} ]]; then
+            state="\033[92m✔\033[0m "
+        else
+            state="\033[31m✘\033[0m "
+        fi
+
+        #files not staged for commit but modified
+        if [[ ${git_status}} =~ ${not_staged_pattern} ]]; then
+            remote="$remote \033[33mM\033[0m"
+        fi
+        if [[ ${git_status}} =~ ${to_be_commited_pattern} ]] && [[ ${git_status}} =~ ${modified_pattern} ]]; then
+            remote="$remote \033[36mM\033[0m"
+        fi
+        #renamed branch
+        if [[ ${git_status} =~ ${renamed_pattern} ]]; then
+            remote="$remote \033[34mR\033[0m"
+        fi
+        # add an else if or two here if you want to get more specific
+        # show if we're ahead or behind HEAD
+        if [[ ${git_status} =~ ${remote_pattern} ]]; then
+            if [[ ${git_status} =~ "behind" ]]; then
+                remote="$remote ↓"
+            elif [[ ${git_status} =~ "ahead" ]]; then
+                remote="$remote ↑"
+            fi
+        fi
+
+        #new files
+        if [[ ${git_status} =~ ${new_pattern} ]]; then
+            remote="$remote \e[34mA\e[m"
+        fi
+        #untracked files
+        if [[ ${git_status} =~ ${untracked_pattern} ]]; then
+            remote="$remote \033[32mU\033[0m"
+        fi
+        #diverged branch
+        if [[ ${git_status} =~ ${diverge_pattern} ]]; then
+            remote="$remote ↕"
+        fi
+        #branch name
+        if [[ ${git_status} =~ ${branch_pattern} ]]; then
+            branch=${BASH_REMATCH[1]}
+        #detached branch
+        elif [[ ${git_status} =~ ${detached_branch_pattern} ]]; then
+            branch="NO BRANCH"
+        fi
+
+        echo -e " (${state}\e[33m\e[1m${branch}\e[33m\e[1m${remote}\e[00m)"
+        #echo -e " (${state}${branch}${remote})"
+    fi
+    return
+}
